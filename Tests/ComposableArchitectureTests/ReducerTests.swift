@@ -39,10 +39,11 @@ final class ReducerTests: XCTestCase {
     }
 
     let myReducer = Reducer<MyState, MyAction, TestScheduler>.combine(
-      localReducer.safeOptional().safeForEach(
+      localReducer.safeForEach(
         state: \.localStates,
         action: /MyAction.localActionAtIndex,
-        environment: { $0 }
+        environment: { $0 },
+        disableAssert: true
       ),
       Reducer { state, action, env in
         switch action {
