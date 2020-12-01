@@ -7,6 +7,70 @@ import XCTest
 #endif
 
 final class ReducerTests: XCTestCase {
+  func testSafeForEach() {
+    struct MyState: Equatable {
+      var localStates: [LocState] = []
+    }
+
+    struct LocState: Equatable {
+      var value: Int = 0
+    }
+
+    enum MyAction: Equatable {
+      case localActionAtIndex(Int, LocAction)
+    }
+
+    enum LocAction: Equatable {
+      case delayedSetValue(Int)
+      case setValue(Int)
+    }
+    
+    
+    
+    let localReducer = Reducer<LocState, LocAction, TestScheduler> { state, action, env in
+      switch action {
+      case .delayedSetValue(let value):
+        return Effect(value: .setValue(value)).delay(1, on: env)
+        
+      case .setValue(let value):
+        state.value = value
+        return .none
+      }
+    }
+
+    let myReducer = Reducer<MyState, MyAction, TestScheduler>.combine(
+      localReducer.safeOptional().safeForEach(
+        state: \.localStates,
+        action: /MyAction.localActionAtIndex,
+        environment: { $0 }
+      ),
+      Reducer { state, action, env in
+        switch action {
+        case let .localActionAtIndex(_, action):
+            if case .delayedSetValue = action {
+                _ = state.localStates.popLast()
+            }
+            return .none
+        }
+      }
+    )
+    
+    let scheduler = TestScheduler()
+    let store = TestStore(
+        initialState: MyState(localStates: [.init(), .init()]),
+        reducer: myReducer,
+        environment: scheduler
+    )
+    
+    store.assert(
+        .send(.localActionAtIndex(3, .delayedSetValue(1))) { state in
+            _ = state.localStates.popLast()
+        },
+        .do { scheduler.advance(by: .milliseconds(1000)) },
+        .send(.localActionAtIndex(3, .setValue(1)))
+    )
+  }
+
   func testCallableAsFunction() {
     let reducer = Reducer<Int, Void, Void> { state, _, _ in
       state += 1

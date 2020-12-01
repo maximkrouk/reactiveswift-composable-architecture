@@ -1,5 +1,18 @@
 import CasePaths
 
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        get {
+            guard (0..<count).contains(index) else { return nil }
+            return self[index]
+        }
+        set {
+            guard let element = newValue, (0..<count).contains(index) else { return }
+            self[index] = element
+        }
+    }
+}
+
 /// A reducer describes how to evolve the current state of an application to the next state, given
 /// an action, and describes what `Effect`s should be executed later by the store, if any.
 ///
@@ -403,6 +416,107 @@ public struct Reducer<State, Action, Environment> {
         toLocalEnvironment(globalEnvironment)
       )
       .map { toLocalAction.embed((index, $0)) }
+    }
+  }
+  /// A version of `pullback` that transforms a reducer that works on an element into one that works
+  /// on a collection of elements.
+  ///
+  ///     // Global domain that holds a collection of local domains:
+  ///     struct AppState { var todos: [Todo] }
+  ///     struct AppAction { case todo(index: Int, action: TodoAction) }
+  ///     struct AppEnvironment { var mainQueue: DateScheduler }
+  ///
+  ///     // A reducer that works on a local domain:
+  ///     let todoReducer = Reducer<Todo, TodoAction, TodoEnvironment> { ... }
+  ///
+  ///     // Pullback the local todo reducer so that it works on all of the app domain:
+  ///     let appReducer = Reducer<AppState, AppAction, AppEnvironment>.combine(
+  ///       todoReducer.safeForEach(
+  ///         state: \.todos,
+  ///         action: /AppAction.todo(index:action:),
+  ///         environment: { _ in TodoEnvironment() }
+  ///       ),
+  ///       Reducer { state, action, environment in
+  ///         ...
+  ///       }
+  ///     )
+  ///
+  /// Take care when combining `forEach` reducers into parent domains, as order matters. Always
+  /// combine `forEach` reducers _before_ parent reducers that can modify the collection.
+  ///
+  /// - Parameters:
+  ///   - toLocalState: A key path that can get/set an array of `State` elements inside.
+  ///     `GlobalState`.
+  ///   - toLocalAction: A case path that can extract/embed `(Int, Action)` from `GlobalAction`.
+  ///   - toLocalEnvironment: A function that transforms `GlobalEnvironment` into `Environment`.
+  ///   - disableAssert: Flag to disable asserts completely.
+  /// - Returns: A reducer that works on `GlobalState`, `GlobalAction`, `GlobalEnvironment`.
+  public func safeForEach<GlobalState, GlobalAction, GlobalEnvironment>(
+    state toLocalState: WritableKeyPath<GlobalState, [State]>,
+    action toLocalAction: CasePath<GlobalAction, (Int, Action)>,
+    environment toLocalEnvironment: @escaping (GlobalEnvironment) -> Environment,
+    disableAssert: Bool = false,
+    _ file: StaticString = #file,
+    _ line: UInt = #line
+  ) -> Reducer<GlobalState, GlobalAction, GlobalEnvironment> {
+    Reducer<State?, Action, Environment> { state, action, environment in
+      guard state != nil else { return .none }
+      return self.reducer(&state!, action, environment)
+    }._safeForEach(
+        state: toLocalState,
+        action: toLocalAction,
+        environment: toLocalEnvironment,
+        disableAssert: disableAssert,
+        file,
+        line
+    )
+  }
+    
+  private func _safeForEach<GlobalState, GlobalAction, GlobalEnvironment, WrappedState>(
+    state toLocalState: WritableKeyPath<GlobalState, [WrappedState]>,
+    action toLocalAction: CasePath<GlobalAction, (Int, Action)>,
+    environment toLocalEnvironment: @escaping (GlobalEnvironment) -> Environment,
+    disableAssert: Bool = false,
+    _ file: StaticString = #file,
+    _ line: UInt = #line
+  ) -> Reducer<GlobalState, GlobalAction, GlobalEnvironment> where State == Optional<WrappedState> {
+    .init { globalState, globalAction, globalEnvironment in
+      guard let (index, localAction) = toLocalAction.extract(from: globalAction) else {
+        return .none
+      }
+      if !disableAssert {
+        assert(
+          index < globalState[keyPath: toLocalState].endIndex,
+          """
+          "\(debugCaseOutput(localAction))" was received by a "forEach" reducer at index \(index) \
+          when its state contained no element at this index. This is considered an application logic \
+          error, and can happen for a few reasons:
+
+          * This "forEach" reducer was combined with or run from another reducer that removed the \
+          element at this index when it handled this action. To fix this make sure that this \
+          "forEach" reducer is run before any other reducers that can move or remove elements from \
+          state. This ensures that "forEach" reducers can handle their actions for the element at \
+          the intended index.
+
+          * An in-flight effect emitted this action while state contained no element at this index. \
+          To fix this make sure that effects for this "forEach" reducer are canceled whenever \
+          elements are moved or removed from its state. If your "forEach" reducer returns any \
+          long-living effects, you should use the identifier-based "forEach", instead.
+
+          * This action was sent to the store while its state contained no element at this index. \
+          To fix this make sure that actions for this reducer can only be sent to a view store when \
+          its state contains an element at this index. In SwiftUI applications, use `ForEachStore`.
+          """,
+          file: file,
+          line: line
+        )
+      }
+      return self.reducer(
+        &globalState[keyPath: toLocalState][safe: index],
+        localAction,
+        toLocalEnvironment(globalEnvironment)
+      )
+    .map { toLocalAction.embed((index, $0)) }
     }
   }
 
