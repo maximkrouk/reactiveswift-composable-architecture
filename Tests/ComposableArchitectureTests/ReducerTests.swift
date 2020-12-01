@@ -24,14 +24,12 @@ final class ReducerTests: XCTestCase {
       case delayedSetValue(Int)
       case setValue(Int)
     }
-    
-    
-    
+
     let localReducer = Reducer<LocState, LocAction, TestScheduler> { state, action, env in
       switch action {
       case .delayedSetValue(let value):
         return Effect(value: .setValue(value)).delay(1, on: env)
-        
+
       case .setValue(let value):
         state.value = value
         return .none
@@ -48,27 +46,27 @@ final class ReducerTests: XCTestCase {
       Reducer { state, action, env in
         switch action {
         case let .localActionAtIndex(_, action):
-            if case .delayedSetValue = action {
-                _ = state.localStates.popLast()
-            }
-            return .none
+          if case .delayedSetValue = action {
+            _ = state.localStates.popLast()
+          }
+          return .none
         }
       }
     )
-    
+
     let scheduler = TestScheduler()
     let store = TestStore(
-        initialState: MyState(localStates: [.init(), .init()]),
-        reducer: myReducer,
-        environment: scheduler
+      initialState: MyState(localStates: [.init(), .init()]),
+      reducer: myReducer,
+      environment: scheduler
     )
-    
+
     store.assert(
-        .send(.localActionAtIndex(3, .delayedSetValue(1))) { state in
-            _ = state.localStates.popLast()
-        },
-        .do { scheduler.advance(by: .milliseconds(1000)) },
-        .send(.localActionAtIndex(3, .setValue(1)))
+      .send(.localActionAtIndex(3, .delayedSetValue(1))) { state in
+        _ = state.localStates.popLast()
+      },
+      .do { scheduler.advance(by: .milliseconds(1000)) },
+      .send(.localActionAtIndex(3, .setValue(1)))
     )
   }
 

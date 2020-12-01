@@ -1,16 +1,16 @@
 import CasePaths
 
 extension Array {
-    subscript(safe index: Index) -> Element? {
-        get {
-            guard (0..<count).contains(index) else { return nil }
-            return self[index]
-        }
-        set {
-            guard let element = newValue, (0..<count).contains(index) else { return }
-            self[index] = element
-        }
+  subscript(safe index: Index) -> Element? {
+    get {
+      guard (0..<count).contains(index) else { return nil }
+      return self[index]
     }
+    set {
+      guard let element = newValue, (0..<count).contains(index) else { return }
+      self[index] = element
+    }
+  }
 }
 
 /// A reducer describes how to evolve the current state of an application to the next state, given
@@ -463,15 +463,15 @@ public struct Reducer<State, Action, Environment> {
       guard state != nil else { return .none }
       return self.reducer(&state!, action, environment)
     }._safeForEach(
-        state: toLocalState,
-        action: toLocalAction,
-        environment: toLocalEnvironment,
-        disableAssert: disableAssert,
-        file,
-        line
+      state: toLocalState,
+      action: toLocalAction,
+      environment: toLocalEnvironment,
+      disableAssert: disableAssert,
+      file,
+      line
     )
   }
-    
+
   private func _safeForEach<GlobalState, GlobalAction, GlobalEnvironment, WrappedState>(
     state toLocalState: WritableKeyPath<GlobalState, [WrappedState]>,
     action toLocalAction: CasePath<GlobalAction, (Int, Action)>,
@@ -479,7 +479,7 @@ public struct Reducer<State, Action, Environment> {
     disableAssert: Bool = false,
     _ file: StaticString = #file,
     _ line: UInt = #line
-  ) -> Reducer<GlobalState, GlobalAction, GlobalEnvironment> where State == Optional<WrappedState> {
+  ) -> Reducer<GlobalState, GlobalAction, GlobalEnvironment> where State == WrappedState? {
     .init { globalState, globalAction, globalEnvironment in
       guard let (index, localAction) = toLocalAction.extract(from: globalAction) else {
         return .none
@@ -516,7 +516,7 @@ public struct Reducer<State, Action, Environment> {
         localAction,
         toLocalEnvironment(globalEnvironment)
       )
-    .map { toLocalAction.embed((index, $0)) }
+      .map { toLocalAction.embed((index, $0)) }
     }
   }
 
