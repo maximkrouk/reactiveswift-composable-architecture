@@ -46,9 +46,9 @@
   ///
   ///         case .deleteTapped:
   ///           state.alert = .init(
-  ///             title: "Delete",
-  ///             message: "Are you sure you want to delete this? It cannot be undone.",
-  ///             primaryButton: .default("Confirm", send: .confirmTapped),
+  ///             title: TextState("Delete"),
+  ///             message: TextState("Are you sure you want to delete this? It cannot be undone."),
+  ///             primaryButton: .default(TextState("Confirm"), send: .confirmTapped),
   ///             secondaryButton: .cancel()
   ///           )
   ///         return .none
@@ -79,9 +79,9 @@
   ///     store.assert(
   ///       .send(.deleteTapped) {
   ///         $0.alert = .init(
-  ///           title: "Delete",
-  ///           message: "Are you sure you want to delete this? It cannot be undone.",
-  ///           primaryButton: .default("Confirm", send: .confirmTapped),
+  ///           title: TextState("Delete"),
+  ///           message: TextState("Are you sure you want to delete this? It cannot be undone."),
+  ///           primaryButton: .default(TextState("Confirm"), send: .confirmTapped),
   ///           secondaryButton: .cancel(send: .cancelTapped)
   ///         )
   ///       },
@@ -94,14 +94,14 @@
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   public struct AlertState<Action> {
     public let id = UUID()
-    public var message: LocalizedStringKey?
+    public var message: TextState?
     public var primaryButton: Button?
     public var secondaryButton: Button?
-    public var title: LocalizedStringKey
+    public var title: TextState
 
     public init(
-      title: LocalizedStringKey,
-      message: LocalizedStringKey? = nil,
+      title: TextState,
+      message: TextState? = nil,
       dismissButton: Button? = nil
     ) {
       self.title = title
@@ -110,8 +110,8 @@
     }
 
     public init(
-      title: LocalizedStringKey,
-      message: LocalizedStringKey? = nil,
+      title: TextState,
+      message: TextState? = nil,
       primaryButton: Button,
       secondaryButton: Button
     ) {
@@ -126,7 +126,7 @@
       public var type: `Type`
 
       public static func cancel(
-        _ label: LocalizedStringKey,
+        _ label: TextState,
         send action: Action? = nil
       ) -> Self {
         Self(action: action, type: .cancel(label: label))
@@ -139,23 +139,23 @@
       }
 
       public static func `default`(
-        _ label: LocalizedStringKey,
+        _ label: TextState,
         send action: Action? = nil
       ) -> Self {
         Self(action: action, type: .default(label: label))
       }
 
       public static func destructive(
-        _ label: LocalizedStringKey,
+        _ label: TextState,
         send action: Action? = nil
       ) -> Self {
         Self(action: action, type: .destructive(label: label))
       }
 
       public enum `Type` {
-        case cancel(label: LocalizedStringKey?)
-        case `default`(label: LocalizedStringKey)
-        case destructive(label: LocalizedStringKey)
+        case cancel(label: TextState?)
+        case `default`(label: TextState)
+        case destructive(label: TextState)
       }
     }
   }
@@ -199,8 +199,8 @@
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   extension AlertState: Equatable where Action: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.title.formatted() == rhs.title.formatted()
-        && lhs.message?.formatted() == rhs.message?.formatted()
+      lhs.title == rhs.title
+        && lhs.message == rhs.message
         && lhs.primaryButton == rhs.primaryButton
         && lhs.secondaryButton == rhs.secondaryButton
     }
@@ -209,8 +209,8 @@
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   extension AlertState: Hashable where Action: Hashable {
     public func hash(into hasher: inout Hasher) {
-      hasher.combine(self.title.formatted())
-      hasher.combine(self.message?.formatted())
+      hasher.combine(self.title)
+      hasher.combine(self.message)
       hasher.combine(self.primaryButton)
       hasher.combine(self.secondaryButton)
     }
@@ -220,45 +220,14 @@
   extension AlertState: Identifiable {}
 
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
-  extension AlertState.Button.`Type`: Equatable {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-      switch (lhs, rhs) {
-      case let (.cancel(lhs), .cancel(rhs)):
-        return lhs?.formatted() == rhs?.formatted()
-      case let (.default(lhs), .default(rhs)), let (.destructive(lhs), .destructive(rhs)):
-        return lhs.formatted() == rhs.formatted()
-      default:
-        return false
-      }
-    }
-  }
+  extension AlertState.Button.`Type`: Equatable {}
+  @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
+  extension AlertState.Button: Equatable where Action: Equatable {}
 
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
-  extension AlertState.Button: Equatable where Action: Equatable {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-      return lhs.action == rhs.action && lhs.type == rhs.type
-    }
-  }
-
+  extension AlertState.Button.`Type`: Hashable {}
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
-  extension AlertState.Button.`Type`: Hashable {
-    public func hash(into hasher: inout Hasher) {
-      switch self {
-      case let .cancel(label):
-        hasher.combine(label?.formatted())
-      case let .default(label), let .destructive(label):
-        hasher.combine(label.formatted())
-      }
-    }
-  }
-
-  @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
-  extension AlertState.Button: Hashable where Action: Hashable {
-    public func hash(into hasher: inout Hasher) {
-      hasher.combine(self.action)
-      hasher.combine(self.type)
-    }
-  }
+  extension AlertState.Button: Hashable where Action: Hashable {}
 
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   extension AlertState.Button {
@@ -280,20 +249,17 @@
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   extension AlertState {
     fileprivate func toSwiftUI(send: @escaping (Action) -> Void) -> SwiftUI.Alert {
-      let title = Text(self.title)
-      let message = self.message.map { Text($0) }
-
       if let primaryButton = self.primaryButton, let secondaryButton = self.secondaryButton {
         return SwiftUI.Alert(
-          title: title,
-          message: message,
+          title: Text(self.title),
+          message: self.message.map { Text($0) },
           primaryButton: primaryButton.toSwiftUI(send: send),
           secondaryButton: secondaryButton.toSwiftUI(send: send)
         )
       } else {
         return SwiftUI.Alert(
-          title: title,
-          message: message,
+          title: Text(self.title),
+          message: self.message.map { Text($0) },
           dismissButton: self.primaryButton?.toSwiftUI(send: send)
         )
       }

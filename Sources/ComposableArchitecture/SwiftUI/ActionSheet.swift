@@ -53,8 +53,8 @@
   ///           state.actionSheet = .init(
   ///             title: "What would you like to do?",
   ///             buttons: [
-  ///               .default("Favorite", send: .favoriteTapped),
-  ///               .destructive("Delete", send: .deleteTapped),
+  ///               .default(TextState("Favorite"), send: .favoriteTapped),
+  ///               .destructive(TextState("Delete"), send: .deleteTapped),
   ///               .cancel(),
   ///             ]
   ///           )
@@ -88,8 +88,8 @@
   ///         $0.actionSheet = .init(
   ///           title: "What would you like to do?",
   ///           buttons: [
-  ///             .default("Favorite", send: .favoriteTapped),
-  ///             .destructive("Delete", send: .deleteTapped),
+  ///             .default(TextState("Favorite"), send: .favoriteTapped),
+  ///             .destructive(TextState("Delete"), send: .deleteTapped),
   ///             .cancel(),
   ///           ]
   ///         )
@@ -100,20 +100,16 @@
   ///       }
   ///     )
   ///
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   public struct ActionSheetState<Action> {
     public let id = UUID()
     public var buttons: [Button]
-    public var message: LocalizedStringKey?
-    public var title: LocalizedStringKey
+    public var message: TextState?
+    public var title: TextState
 
     public init(
-      title: LocalizedStringKey,
-      message: LocalizedStringKey? = nil,
+      title: TextState,
+      message: TextState? = nil,
       buttons: [Button]
     ) {
       self.buttons = buttons
@@ -124,11 +120,7 @@
     public typealias Button = AlertState<Action>.Button
   }
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension ActionSheetState: CustomDebugOutputConvertible {
     public var debugOutput: String {
       let fields = (
@@ -140,44 +132,28 @@
     }
   }
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension ActionSheetState: Equatable where Action: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.title.formatted() == rhs.title.formatted()
-        && lhs.message?.formatted() == rhs.message?.formatted()
+      lhs.title == rhs.title
+        && lhs.message == rhs.message
         && lhs.buttons == rhs.buttons
     }
   }
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension ActionSheetState: Hashable where Action: Hashable {
     public func hash(into hasher: inout Hasher) {
-      hasher.combine(self.title.formatted())
-      hasher.combine(self.message?.formatted())
+      hasher.combine(self.title)
+      hasher.combine(self.message)
       hasher.combine(self.buttons)
     }
   }
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension ActionSheetState: Identifiable {}
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension View {
     /// Displays an action sheet when the store's state becomes non-`nil`, and dismisses it when it
     /// becomes `nil`.
@@ -187,11 +163,8 @@
     ///   - dismissal: An action to send when the action sheet is dismissed through non-user actions,
     ///     such as when an action sheet is automatically dismissed by the system. Use this action to
     ///     `nil` out the associated action sheet state.
-    @available(iOS 13, *)
-    @available(macCatalyst 13, *)
+    @available(iOS 13, macCatalyst 13, tvOS 13, watchOS 6, *)
     @available(macOS, unavailable)
-    @available(tvOS 13, *)
-    @available(watchOS 6, *)
     public func actionSheet<Action>(
       _ store: Store<ActionSheetState<Action>?, Action>,
       dismiss: Action
@@ -205,12 +178,9 @@
     }
   }
 
-  @available(iOS 13, *)
-  @available(macCatalyst 13, *)
-  @available(macOS 10.15, *)
-  @available(tvOS 13, *)
-  @available(watchOS 6, *)
+  @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   extension ActionSheetState {
+    @available(iOS 13, macCatalyst 13, tvOS 13, watchOS 6, *)
     @available(macOS, unavailable)
     fileprivate func toSwiftUI(send: @escaping (Action) -> Void) -> SwiftUI.ActionSheet {
       SwiftUI.ActionSheet(
