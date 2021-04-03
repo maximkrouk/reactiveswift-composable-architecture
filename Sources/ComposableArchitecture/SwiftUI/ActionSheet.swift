@@ -83,8 +83,7 @@
   ///       environment: .mock
   ///     )
   ///
-  ///     store.assert(
-  ///       .send(.infoTapped) {
+  ///     store.send(.infoTapped) {
   ///         $0.actionSheet = .init(
   ///           title: "What would you like to do?",
   ///           buttons: [
@@ -93,12 +92,11 @@
   ///             .cancel(),
   ///           ]
   ///         )
-  ///       },
-  ///       .send(.favoriteTapped) {
+  ///     }
+  ///     store.send(.favoriteTapped) {
   ///         $0.actionSheet = nil
   ///         // Also verify that favoriting logic executed correctly
   ///       }
-  ///     )
   ///
   @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   public struct ActionSheetState<Action> {

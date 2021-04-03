@@ -76,20 +76,18 @@
   ///       environment: .mock
   ///     )
   ///
-  ///     store.assert(
-  ///       .send(.deleteTapped) {
+  ///     store.send(.deleteTapped) {
   ///         $0.alert = .init(
   ///           title: TextState("Delete"),
   ///           message: TextState("Are you sure you want to delete this? It cannot be undone."),
   ///           primaryButton: .default(TextState("Confirm"), send: .confirmTapped),
   ///           secondaryButton: .cancel(send: .cancelTapped)
   ///         )
-  ///       },
-  ///       .send(.deleteTapped) {
+  ///     }
+  ///     store.send(.deleteTapped) {
   ///         $0.alert = nil
   ///         // Also verify that delete logic executed correctly
   ///       }
-  ///     )
   ///
   @available(iOS 13.0, macOS 10.15, macCatalyst 13, tvOS 13.0, watchOS 6.0, *)
   public struct AlertState<Action> {

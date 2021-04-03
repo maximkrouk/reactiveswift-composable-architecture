@@ -265,6 +265,12 @@ extension ViewStore where State: Equatable {
   }
 }
 
+extension ViewStore where State == Void {
+  public convenience init(_ store: Store<Void, Action>) {
+    self.init(store, removeDuplicates: ==)
+  }
+}
+
 #if canImport(Combine)
   extension ViewStore: ObservableObject {
   }
