@@ -9,14 +9,14 @@ import ReactiveSwift
 public final class Store<State, Action> {
   @MutableProperty
   private(set) var state: State
-  
+
   private var isSending = false
   private let reducer: (inout State, Action) -> Effect<Action, Never>
   private var synchronousActionsToSend: [Action] = []
   private var bufferedActions: [Action] = []
   internal var effectDisposables: [UUID: Disposable] = [:]
   internal var parentDisposable: Disposable?
-  
+
   /// Initializes a store from an initial state, a reducer, and an environment.
   ///
   /// - Parameters:
@@ -174,21 +174,9 @@ public final class Store<State, Action> {
         return .none
       }
     )
-    let observer = Signal<State, Never>.Observer(
-      value: { [weak localStore] state in
-        localStore?.state = toLocalState(state)
-      },
-      failed: .none,
-      completed: { [weak localStore] in
-        localStore?.parentDisposable?.dispose()
-        localStore?.parentDisposable = nil
-      },
-      interrupted: { [weak localStore] in
-        localStore?.parentDisposable?.dispose()
-        localStore?.parentDisposable = nil
-      }
-    )
-    localStore.parentDisposable = self.$state.producer.start(observer)
+    localStore.parentDisposable = self.$state.producer.startWithValues { [weak localStore] state in
+      localStore?.state = toLocalState(state)
+    }
     return localStore
   }
   
@@ -231,24 +219,11 @@ public final class Store<State, Action> {
             return .none
           }
         )
-        
-        let observer = Signal<State, Never>.Observer(
-          value: { [weak localStore] state in
-            guard let localStore = localStore else { return }
-            localStore.state = extractLocalState(state) ?? localStore.state
-          },
-          failed: .none,
-          completed: { [weak localStore] in
-            localStore?.parentDisposable?.dispose()
-            localStore?.parentDisposable = nil
-          },
-          interrupted: { [weak localStore] in
-            localStore?.parentDisposable?.dispose()
-            localStore?.parentDisposable = nil
-          }
-        )
-        
-        localStore.parentDisposable = self.$state.producer.start(observer)
+        localStore.parentDisposable = self.$state.producer.startWithValues {
+          [weak localStore] state in
+          guard let localStore = localStore else { return }
+          localStore.state = extractLocalState(state) ?? localStore.state
+        }
         return localStore
       }
   }
@@ -282,12 +257,11 @@ public final class Store<State, Action> {
       self.isSending = true
       let effect = self.reducer(&self.state, action)
       self.isSending = false
-      
+
       var didComplete = false
       let effectID = UUID()
-      
+
       var isProcessingEffects = true
-      
       let observer = Signal<Action, Never>.Observer(
         value: { [weak self] action in
           if isProcessingEffects {
@@ -308,7 +282,6 @@ public final class Store<State, Action> {
       )
       let effectDisposable = effect.start(observer)
       isProcessingEffects = false
-      
       if !didComplete {
         self.effectDisposables[effectID] = effectDisposable
       } else {
@@ -335,7 +308,6 @@ public final class Store<State, Action> {
     self.reducer = reducer
     self.state = initialState
   }
-  
   deinit {
     self.parentDisposable?.dispose()
     self.effectDisposables.keys.forEach { id in
@@ -347,10 +319,23 @@ public final class Store<State, Action> {
 /// A producer of store state.
 @dynamicMemberLookup
 public struct Produced<Value>: SignalProducerConvertible {
-  public let producer: Effect<Value, Never>
-  
-  init(by upstream: Effect<Value, Never>) {
-    self.producer = upstream
+  private let _producer: Effect<Value, Never>
+  private let comparator: (Value, Value) -> Bool
+
+  public var producer: Effect<Value, Never> {
+    _producer.skipRepeats(comparator)
+  }
+
+  init(
+    by upstream: Effect<Value, Never>,
+    isEqual: @escaping (Value, Value) -> Bool
+  ) {
+    self._producer = upstream
+    self.comparator = isEqual
+  }
+
+  init(by upstream: Effect<Value, Never>) where Value: Equatable {
+    self.init(by: upstream, isEqual: ==)
   }
   
   /// Returns the resulting producer of a given key path.
@@ -358,6 +343,13 @@ public struct Produced<Value>: SignalProducerConvertible {
     dynamicMember keyPath: KeyPath<Value, LocalValue>
   ) -> Effect<LocalValue, Never> where LocalValue: Equatable {
     self.producer.map(keyPath).skipRepeats()
+  }
+
+  /// Returns the resulting producer of a given key path.
+  public subscript<LocalValue>(
+    dynamicMember keyPath: KeyPath<Value, LocalValue>
+  ) -> Produced<LocalValue> where LocalValue: Equatable {
+    Produced<LocalValue>(by: self.producer.map(keyPath).skipRepeats())
   }
 }
 

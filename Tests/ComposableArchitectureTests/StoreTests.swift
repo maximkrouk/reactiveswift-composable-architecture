@@ -38,6 +38,37 @@ final class StoreTests: XCTestCase {
     XCTAssertEqual(store.effectDisposables.count, 0)
   }
 
+  func testProducedMapping() {
+    struct ChildState: Equatable {
+      var value: Int = 0
+    }
+    struct ParentState: Equatable {
+      var child: ChildState = .init()
+    }
+
+    let store = Store<ParentState, Void>(
+      initialState: ParentState(),
+      reducer: Reducer { state, _, _ in
+        state.child.value += 1
+        return .none
+      },
+      environment: ()
+    )
+
+    let viewStore = ViewStore(store)
+    var values: [Int] = []
+
+    viewStore.produced.child.value.startWithValues { value in
+      values.append(value)
+    }
+
+    viewStore.send(())
+    viewStore.send(())
+    viewStore.send(())
+
+    XCTAssertEqual(values, [0, 1, 2, 3])
+  }
+
   func testScopedStoreReceivesUpdatesFromParent() {
     let counterReducer = Reducer<Int, Void, Void> { state, _, _ in
       state += 1
@@ -313,21 +344,22 @@ final class StoreTests: XCTestCase {
       environment: ()
     )
 
-    parentStore.ifLet { childStore in
-      let vs = ViewStore(childStore)
+    parentStore
+      .ifLet(then: { childStore in
+        let vs = ViewStore(childStore)
 
-      vs
-        .produced.producer
-        .startWithValues { _ in }
+        vs
+          .produced.producer
+          .startWithValues { _ in }
 
-      vs.send(false)
-      _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
-      vs.send(false)
-      _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
-      vs.send(false)
-      _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
-      XCTAssertEqual(vs.state, 3)
-    }
+        vs.send(false)
+        _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
+        vs.send(false)
+        _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
+        vs.send(false)
+        _ = XCTWaiter.wait(for: [.init()], timeout: 0.1)
+        XCTAssertEqual(vs.state, 3)
+      })
   }
 
   func testActionQueuing() {

@@ -73,7 +73,7 @@
     public init<EachContent>(
       _ store: Store<Data, (Data.Index, EachAction)>,
       id: KeyPath<EachState, ID>,
-      content: @escaping (Store<EachState, EachAction>) -> EachContent
+      @ViewBuilder content: @escaping (Store<EachState, EachAction>) -> EachContent
     )
     where
       Data == [EachState],
@@ -106,7 +106,7 @@
     ///   - content: A function that can generate content given a store of an element.
     public init<EachContent>(
       _ store: Store<Data, (Data.Index, EachAction)>,
-      content: @escaping (Store<EachState, EachAction>) -> EachContent
+      @ViewBuilder content: @escaping (Store<EachState, EachAction>) -> EachContent
     )
     where
       Data == [EachState],
@@ -128,23 +128,26 @@
     ///   - content: A function that can generate content given a store of an element.
     public init<EachContent: View>(
       _ store: Store<IdentifiedArray<ID, EachState>, (ID, EachAction)>,
-      content: @escaping (Store<EachState, EachAction>) -> EachContent
+      @ViewBuilder content: @escaping (Store<EachState, EachAction>) -> EachContent
     )
     where
       EachContent: View,
       Data == IdentifiedArray<ID, EachState>,
-      Content == WithViewStore<[ID], (ID, EachAction), ForEach<[ID], ID, EachContent>>
+      Content == WithViewStore<
+        [ID], (ID, EachAction), ForEach<[ID], ID, IfLetStore<EachState, EachAction, EachContent?>>
+      >
     {
-      let data = store.state
-      self.data = data
+      self.data = store.state
       self.content = {
         WithViewStore(store.scope(state: { $0.ids })) { viewStore in
           ForEach(viewStore.state, id: \.self) { id in
-            content(
-              store.scope(
-                state: { $0[id: id] ?? data[id: id]! },
-                action: { (id, $0) }
-              )
+            // NB: We safely unwrap state here to avoid a potential crash where SwiftUI may
+            //     re-evaluate views for elements no longer in the collection.
+            //
+            // Feedback filed: https://gist.github.com/stephencelis/cdf85ae8dab437adc998fb0204ed9a6b
+            IfLetStore(
+              store.scope(state: { $0[id: id] }, action: { (id, $0) }),
+              then: content
             )
           }
         }

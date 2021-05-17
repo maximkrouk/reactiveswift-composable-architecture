@@ -42,9 +42,9 @@
   /// In the future, should `SwiftUI.Text` and `SwiftUI.LocalizedStringKey` reliably conform to
   /// `Equatable`, `TextState` may be deprecated.
   ///
-  /// - Note: `TextState` does not support _all_ `LocalizedStringKey` permutations at this time, in
-  ///   particular, for example interpolated `SwiftUI.Image`s. `TextState` also uses reflection to
-  ///   determine `LocalizedStringKey` equatability, so look out for edge cases.
+  /// - Note: `TextState` does not support _all_ `LocalizedStringKey` permutations at this time
+  ///   (interpolated `SwiftUI.Image`s, for example. `TextState` also uses reflection to determine
+  ///   `LocalizedStringKey` equatability, so be mindful of edge cases.
   @available(iOS 13, macOS 10.15, macCatalyst 13, tvOS 13, watchOS 6, *)
   public struct TextState: Equatable, Hashable {
     fileprivate var modifiers: [Modifier] = []
