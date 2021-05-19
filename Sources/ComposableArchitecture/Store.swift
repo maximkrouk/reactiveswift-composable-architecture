@@ -9,14 +9,14 @@ import ReactiveSwift
 public final class Store<State, Action> {
   @MutableProperty
   private(set) var state: State
-
+  
   private var isSending = false
   private let reducer: (inout State, Action) -> Effect<Action, Never>
   private var synchronousActionsToSend: [Action] = []
   private var bufferedActions: [Action] = []
   internal var effectDisposables: [UUID: Disposable] = [:]
   internal var parentDisposable: Disposable?
-
+  
   /// Initializes a store from an initial state, a reducer, and an environment.
   ///
   /// - Parameters:
@@ -257,10 +257,10 @@ public final class Store<State, Action> {
       self.isSending = true
       let effect = self.reducer(&self.state, action)
       self.isSending = false
-
+      
       var didComplete = false
       let effectID = UUID()
-
+      
       var isProcessingEffects = true
       let observer = Signal<Action, Never>.Observer(
         value: { [weak self] action in
@@ -320,20 +320,20 @@ public final class Store<State, Action> {
 @dynamicMemberLookup
 public struct Produced<Value>: SignalProducerConvertible {
   private let _producer: Effect<Value, Never>
-  private let comparator: (Value, Value) -> Bool
-
+  private let comparator: ((Value, Value) -> Bool)?
+  
   public var producer: Effect<Value, Never> {
-    _producer.skipRepeats(comparator)
+    comparator.map(_producer.skipRepeats) ?? _producer
   }
-
+  
   init(
     by upstream: Effect<Value, Never>,
-    isEqual: @escaping (Value, Value) -> Bool
+    isEqual: ((Value, Value) -> Bool)? = nil
   ) {
     self._producer = upstream
     self.comparator = isEqual
   }
-
+  
   init(by upstream: Effect<Value, Never>) where Value: Equatable {
     self.init(by: upstream, isEqual: ==)
   }
@@ -344,7 +344,7 @@ public struct Produced<Value>: SignalProducerConvertible {
   ) -> Effect<LocalValue, Never> where LocalValue: Equatable {
     self.producer.map(keyPath).skipRepeats()
   }
-
+  
   /// Returns the resulting producer of a given key path.
   public subscript<LocalValue>(
     dynamicMember keyPath: KeyPath<Value, LocalValue>

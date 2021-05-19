@@ -79,7 +79,7 @@ public final class ViewStore<State, Action> {
   ///     equal, repeat view computations are removed.
   public init(
     _ store: Store<State, Action>,
-    removeDuplicates isDuplicate: @escaping (State, State) -> Bool
+    removeDuplicates isDuplicate: ((State, State) -> Bool)?
   ) {
     let produced = Produced(by: store.$state.producer, isEqual: isDuplicate)
     self.produced = produced
